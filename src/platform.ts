@@ -31,6 +31,7 @@ export class ElkM1Platform implements DynamicPlatformPlugin {
     private zoneAccessories: Record<number, ElkInput> = {};
     private garageDoorAccessories: ElkGarageDoor[] = [];
 
+    private timeoutActive: boolean = false; 
     private initialRetryDelay = 5000;
     private retryDelay = this.initialRetryDelay;
 
@@ -116,11 +117,17 @@ export class ElkM1Platform implements DynamicPlatformPlugin {
         });
 
         this.elk.on('error', (err) => {
-            this.log.error(`Error connecting to ElkM1 ${err}. Will retry in ${this.retryDelay/1000}s`);
+          this.log.error(`Error connecting to ElkM1 ${err}. Will retry in ${this.retryDelay / 1000}s`);
+          if (this.timeoutActive === false) {
+            this.timeoutActive = true;
             setTimeout(() => {
-                this.connect();
+              this.connect();
+              this.timeoutActive = false;
             }, this.retryDelay);
             this.retryDelay = this.retryDelay * 2;
+          } else { 
+              this.log.error(`Error connecting to ElkM1 ${err}. reset timeout currently Active awaiting reconnection`);
+            }
         });
 
         // When this event is fired it means Homebridge has restored all cached accessories from disk.
@@ -422,7 +429,7 @@ export class ElkM1Platform implements DynamicPlatformPlugin {
     async connect() {
         try {
             this.log.info('Attempting to connect to Elk M1');
-            this.elk.connect();
+            await this.elk.connect();
         } catch (err) {
             this.log.error(`Caught ${err} during connect`);
         }
